@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>个人主页 · 简历、论文与随笔</title>
+  <meta name="description" content="个人学术与技术主页：简历、论文发表与长文随笔。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Reading Progress Bar (shown on blog article view) -->
+  <div id="reading-progress" class="reading-progress" aria-hidden="true"></div>
+
+  <!-- Editorial Top Masthead -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#home" class="brand" data-route="home">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <span class="brand-text" id="brand-name">个人主页</span>
+      </a>
+
+      <nav class="main-nav" id="main-nav" aria-label="主导航">
+        <a href="#home" class="nav-link" data-route="home">首页</a>
+        <a href="#cv" class="nav-link" data-route="cv">个人简历</a>
+        <a href="#papers" class="nav-link" data-route="papers">论文发表</a>
+        <a href="#blog" class="nav-link" data-route="blog">个人博客</a>
+      </nav>
+
+      <div class="header-actions">
+        <button
+          id="theme-toggle"
+          class="icon-btn"
+          type="button"
+          aria-label="切换浅色/深色主题"
+          title="切换主题"
+        >
+          <span class="theme-icon-light" aria-hidden="true">☾</span>
+          <span class="theme-icon-dark" aria-hidden="true">☀</span>
+        </button>
+        <button
+          id="mobile-menu-toggle"
+          class="icon-btn mobile-only"
+          type="button"
+          aria-label="展开菜单"
+          aria-expanded="false"
+        >
+          <span aria-hidden="true">☰</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Dynamic View Container -->
+  <main id="app" class="site-main" tabindex="-1"></main>
+
+  <!-- Editorial Footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-col">
+        <p class="footer-title" id="footer-brand">个人主页</p>
+        <p class="footer-note" id="footer-note">记录研究、工程与慢思考。</p>
+      </div>
+      <div class="footer-links" id="footer-links"></div>
+    </div>
+    <div class="container footer-bottom">
+      <span id="footer-copyright">© 2026</span>
+      <span>Built for GitHub Pages · Warm Editorial Edition</span>
+    </div>
+  </footer>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Data & App Scripts -->
+  <script src="site-data.js"></script>
+  <script src="posts.js"></script>
+  <script src="markdown.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
