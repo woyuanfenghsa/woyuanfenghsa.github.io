@@ -1,34 +1,96 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320" role="img" aria-label="Editorial Avatar Illustration">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 360" width="360" height="360" role="img" aria-label="Stars, Flame, and Polar Day Crest">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F5EDE1"/>
-      <stop offset="100%" stop-color="#E7D8C5"/>
+    <radialGradient id="sky" cx="50%" cy="62%" r="72%">
+      <stop offset="0%" stop-color="#351C24"/>
+      <stop offset="42%" stop-color="#141830"/>
+      <stop offset="100%" stop-color="#070913"/>
+    </radialGradient>
+    <radialGradient id="polarHalo" cx="50%" cy="56%" r="48%">
+      <stop offset="0%" stop-color="#FFE6A7" stop-opacity="0.95"/>
+      <stop offset="28%" stop-color="#FF8C42" stop-opacity="0.58"/>
+      <stop offset="62%" stop-color="#E63956" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#070913" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sunCore" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#FFF7DC"/>
+      <stop offset="48%" stop-color="#FFC766"/>
+      <stop offset="100%" stop-color="#FF5E2B"/>
     </linearGradient>
-    <linearGradient id="sun" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#D47A57"/>
-      <stop offset="100%" stop-color="#B85D3B"/>
+    <linearGradient id="flameGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#FFE59D"/>
+      <stop offset="45%" stop-color="#FF7A33"/>
+      <stop offset="100%" stop-color="#C8283E" stop-opacity="0.88"/>
     </linearGradient>
-    <linearGradient id="hill1" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#608272"/>
-      <stop offset="100%" stop-color="#4A6B5D"/>
+    <linearGradient id="aurora" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#7CE2FF" stop-opacity="0"/>
+      <stop offset="35%" stop-color="#7CE2FF" stop-opacity="0.55"/>
+      <stop offset="65%" stop-color="#FFD27D" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FF6B3D" stop-opacity="0"/>
     </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <rect width="320" height="320" rx="28" fill="url(#bg)"/>
-  <!-- Subtle paper grid arcs -->
-  <circle cx="240" cy="78" r="64" fill="none" stroke="#D9CBB8" stroke-width="1" stroke-dasharray="4 6"/>
-  <circle cx="215" cy="96" r="34" fill="url(#sun)" opacity="0.92"/>
-  <!-- Soft botanical arches -->
-  <path d="M-20 250 Q 95 168 195 228 T 340 212 L 340 340 L -20 340 Z" fill="url(#hill1)" opacity="0.88"/>
-  <path d="M-20 284 Q 125 224 230 274 T 340 258 L 340 340 L -20 340 Z" fill="#364F44" opacity="0.92"/>
-  <!-- Minimalist editorial open book & leaf silhouette -->
-  <g transform="translate(88 122)" fill="none" stroke="#26231F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M72 64 C52 52, 24 52, 6 60 L6 12 C24 4, 52 4, 72 18 Z" fill="#FFFDF9" opacity="0.94"/>
-    <path d="M72 64 C92 52, 120 52, 138 60 L138 12 C120 4, 92 4, 72 18 Z" fill="#FAF7F2" opacity="0.94"/>
-    <line x1="22" y1="24" x2="54" y2="27" stroke="#8C8478" stroke-width="1.8"/>
-    <line x1="22" y1="36" x2="50" y2="39" stroke="#8C8478" stroke-width="1.8"/>
-    <line x1="90" y1="27" x2="122" y2="24" stroke="#8C8478" stroke-width="1.8"/>
-    <line x1="94" y1="39" x2="122" y2="36" stroke="#8C8478" stroke-width="1.8"/>
+
+  <!-- Deep Cosmic Backdrop -->
+  <rect width="360" height="360" rx="28" fill="url(#sky)"/>
+  <circle cx="180" cy="196" r="158" fill="url(#polarHalo)"/>
+
+  <!-- Polar Day Aurora Ribbon -->
+  <path d="M-10 128 Q 95 72, 185 108 T 370 92" fill="none" stroke="url(#aurora)" stroke-width="14" stroke-linecap="round" opacity="0.55" filter="url(#glow)"/>
+  <path d="M-10 144 Q 110 92, 200 124 T 370 112" fill="none" stroke="url(#aurora)" stroke-width="3" stroke-linecap="round" opacity="0.75"/>
+
+  <!-- Celestial Astrolabe Rings -->
+  <g fill="none" stroke="#FFD699" stroke-opacity="0.28">
+    <circle cx="180" cy="180" r="134" stroke-width="1" stroke-dasharray="3 7"/>
+    <circle cx="180" cy="180" r="106" stroke-width="1"/>
+    <ellipse cx="180" cy="180" rx="126" ry="44" transform="rotate(-24 180 180)" stroke="#7CE2FF" stroke-opacity="0.34" stroke-width="1"/>
+    <ellipse cx="180" cy="180" rx="126" ry="44" transform="rotate(24 180 180)" stroke="#FF9B54" stroke-opacity="0.36" stroke-width="1"/>
   </g>
-  <!-- Small signature mark -->
-  <text x="32" y="54" font-family="Georgia, serif" font-size="13" letter-spacing="3" fill="#7D7366">FOLIO · 2026</text>
+
+  <!-- Twinkling Star Field -->
+  <g fill="#FFF5E1">
+    <circle cx="52" cy="64" r="1.8" opacity="0.9"/>
+    <circle cx="88" cy="42" r="1.2" opacity="0.7"/>
+    <circle cx="294" cy="56" r="2.1" opacity="0.95"/>
+    <circle cx="318" cy="108" r="1.4" opacity="0.75"/>
+    <circle cx="44" cy="164" r="1.3" opacity="0.65"/>
+    <circle cx="310" cy="218" r="1.7" opacity="0.8"/>
+    <circle cx="64" cy="282" r="1.5" opacity="0.7"/>
+    <circle cx="282" cy="296" r="1.3" opacity="0.8"/>
+  </g>
+  <!-- Four-point Star Sparkles -->
+  <g fill="#FFE7B3" filter="url(#glow)">
+    <path d="M84 96 L87 104 L95 107 L87 110 L84 118 L81 110 L73 107 L81 104 Z"/>
+    <path d="M276 82 L278.5 88.5 L285 91 L278.5 93.5 L276 100 L273.5 93.5 L267 91 L273.5 88.5 Z" fill="#8CE6FF"/>
+  </g>
+
+  <!-- Polar Day Midnight Sun Disk -->
+  <circle cx="180" cy="176" r="56" fill="url(#sunCore)" filter="url(#glow)"/>
+  <circle cx="180" cy="176" r="64" fill="none" stroke="#FFE4A8" stroke-opacity="0.5" stroke-width="1.2"/>
+
+  <!-- Stylized Sacred Flame Crest Rising Over Polar Horizon -->
+  <path
+    d="M180 112 C196 142, 224 164, 218 202 C214 226, 198 244, 180 250 C162 244, 146 226, 142 202 C136 164, 164 142, 180 112 Z"
+    fill="url(#flameGrad)"
+    opacity="0.92"
+    filter="url(#glow)"
+  />
+  <path
+    d="M180 144 C190 166, 204 182, 200 206 C197 222, 188 232, 180 236 C172 232, 163 222, 160 206 C156 182, 170 166, 180 144 Z"
+    fill="#FFF5D6"
+    opacity="0.88"
+  />
+
+  <!-- Polar Glacier Horizon Line & Reflection -->
+  <path d="M18 258 Q 108 236 180 248 T 342 254 L 342 342 Q 342 348 332 348 L 28 348 Q 18 348 18 342 Z" fill="#0B0F20" opacity="0.92"/>
+  <line x1="48" y1="252" x2="312" y2="252" stroke="url(#aurora)" stroke-width="1.6"/>
+  <ellipse cx="180" cy="272" rx="68" ry="8" fill="#FF8C42" opacity="0.28"/>
+
+  <!-- Coordinates Signature -->
+  <text x="180" y="318" text-anchor="middle" font-family="Georgia, serif" font-size="11.5" letter-spacing="4" fill="#FFD9A0" opacity="0.85">STARS · FLAME · POLAR DAY</text>
 </svg>

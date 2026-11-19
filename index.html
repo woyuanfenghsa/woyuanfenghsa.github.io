@@ -1,23 +1,33 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="astral">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>个人主页 · 简历、论文与随笔</title>
+  <title>个人主页 · 星辰、火焰与极昼</title>
   <meta name="description" content="个人学术与技术主页：简历、论文发表与长文随笔。" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@400;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&family=Noto+Serif+SC:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Reading Progress Bar (shown on blog article view) -->
+  <!-- Live Interactive Canvas: Stars (星辰) + Embers (火焰) + Polar Horizon (极昼) -->
+  <canvas id="cosmos-canvas" class="cosmos-canvas" aria-hidden="true"></canvas>
+
+  <!-- Atmospheric Polar Day Horizon & Aurora Ambient Glow Layers -->
+  <div class="atmosphere" aria-hidden="true">
+    <div class="polar-sun-halo"></div>
+    <div class="polar-aurora"></div>
+    <div class="ember-horizon"></div>
+  </div>
+
+  <!-- Reading Progress Beam -->
   <div id="reading-progress" class="reading-progress" aria-hidden="true"></div>
 
-  <!-- Editorial Top Masthead -->
+  <!-- Astral Glass Top Navigation -->
   <header class="site-header">
     <div class="container header-inner">
       <a href="#home" class="brand" data-route="home">
@@ -35,13 +45,13 @@
       <div class="header-actions">
         <button
           id="theme-toggle"
-          class="icon-btn"
+          class="mode-pill-btn"
           type="button"
-          aria-label="切换浅色/深色主题"
-          title="切换主题"
+          aria-label="切换星辰炽焰 / 极昼天穹主题"
+          title="切换星夜与极昼模式"
         >
-          <span class="theme-icon-light" aria-hidden="true">☾</span>
-          <span class="theme-icon-dark" aria-hidden="true">☀</span>
+          <span class="mode-label-astral">☀ 极昼模式</span>
+          <span class="mode-label-polar">✦ 星焰模式</span>
         </button>
         <button
           id="mobile-menu-toggle"
@@ -59,18 +69,18 @@
   <!-- Main Dynamic View Container -->
   <main id="app" class="site-main" tabindex="-1"></main>
 
-  <!-- Editorial Footer -->
+  <!-- Celestial Footer -->
   <footer class="site-footer">
     <div class="container footer-inner">
       <div class="footer-col">
         <p class="footer-title" id="footer-brand">个人主页</p>
-        <p class="footer-note" id="footer-note">记录研究、工程与慢思考。</p>
+        <p class="footer-note" id="footer-note">向星辰发问，以炽焰求索，在极昼的光晕里持续写作。</p>
       </div>
       <div class="footer-links" id="footer-links"></div>
     </div>
     <div class="container footer-bottom">
       <span id="footer-copyright">© 2026</span>
-      <span>Built for GitHub Pages · Warm Editorial Edition</span>
+      <span>STARS · FLAME · POLAR DAY · GitHub Pages</span>
     </div>
   </footer>
 

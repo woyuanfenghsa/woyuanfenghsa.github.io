@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * 主应用逻辑与路由 (js/app.js)
+ * 主应用逻辑、路由与「星辰 · 火焰 · 极昼」实时动态星空引擎 (app.js)
  * ============================================================
  */
 
@@ -65,17 +65,205 @@
     document.body.removeChild(ta);
   }
 
-  /* ---------- Theme Initialization ---------- */
+  /* ---------- Interactive Stars + Embers + Polar Sun Canvas ---------- */
+  function initCosmosCanvas() {
+    const canvas = document.getElementById("cosmos-canvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const prefersReduced =
+      window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let width = 0;
+    let height = 0;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let stars = [];
+    let embers = [];
+    let meteors = [];
+    let mouse = { x: 0.5, y: 0.5 };
+
+    function resize() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const starCount = Math.min(160, Math.floor((width * height) / 9500));
+      stars = Array.from({ length: starCount }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: Math.random() * 1.65 + 0.35,
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.018 + 0.006,
+        hue: Math.random() < 0.28 ? "cyan" : Math.random() < 0.55 ? "gold" : "white"
+      }));
+
+      const emberCount = Math.min(44, Math.floor(width / 30));
+      embers = Array.from({ length: emberCount }, () => spawnEmber(true));
+    }
+
+    function spawnEmber(randomY) {
+      return {
+        x: Math.random() * width,
+        y: randomY ? Math.random() * height : height + Math.random() * 60,
+        r: Math.random() * 2.4 + 0.8,
+        vy: -(Math.random() * 0.55 + 0.22),
+        vx: (Math.random() - 0.5) * 0.35,
+        drift: Math.random() * Math.PI * 2,
+        life: Math.random() * 0.7 + 0.3,
+        warm: Math.random()
+      };
+    }
+
+    function spawnMeteor() {
+      meteors.push({
+        x: Math.random() * width * 0.8 + width * 0.15,
+        y: Math.random() * height * 0.32,
+        len: Math.random() * 90 + 70,
+        speed: Math.random() * 7 + 8,
+        angle: Math.PI * 0.78,
+        alpha: 1
+      });
+    }
+
+    window.addEventListener("resize", resize);
+    window.addEventListener(
+      "mousemove",
+      (e) => {
+        mouse.x = e.clientX / Math.max(1, width);
+        mouse.y = e.clientY / Math.max(1, height);
+      },
+      { passive: true }
+    );
+
+    resize();
+
+    let frame = 0;
+    function draw() {
+      frame++;
+      const isPolarDay = document.documentElement.getAttribute("data-theme") === "polarday";
+      ctx.clearRect(0, 0, width, height);
+
+      const offsetX = (mouse.x - 0.5) * 18;
+      const offsetY = (mouse.y - 0.5) * 12;
+
+      // 1. Twinkling Stars (星辰)
+      for (const s of stars) {
+        s.phase += s.speed;
+        const twinkle = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(s.phase));
+        const px = s.x + offsetX * (s.r * 0.45);
+        const py = s.y + offsetY * (s.r * 0.45);
+
+        let color;
+        if (isPolarDay) {
+          // Subtle high-altitude sun motes / polar daylight sparkles
+          color =
+            s.hue === "gold"
+              ? `rgba(224, 136, 48, ${twinkle * 0.34})`
+              : `rgba(42, 118, 178, ${twinkle * 0.22})`;
+        } else {
+          color =
+            s.hue === "cyan"
+              ? `rgba(138, 232, 255, ${twinkle * 0.85})`
+              : s.hue === "gold"
+              ? `rgba(255, 222, 158, ${twinkle * 0.9})`
+              : `rgba(255, 250, 242, ${twinkle * 0.85})`;
+        }
+
+        ctx.beginPath();
+        ctx.arc(px, py, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+
+      // 2. Occasional Shooting Star (流星) in Astral Mode
+      if (!isPolarDay && !prefersReduced && frame % 240 === 0 && meteors.length < 2) {
+        spawnMeteor();
+      }
+
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        m.x += Math.cos(m.angle) * m.speed;
+        m.y += Math.sin(m.angle) * m.speed;
+        m.alpha -= 0.018;
+
+        if (m.alpha <= 0) {
+          meteors.splice(i, 1);
+          continue;
+        }
+
+        const tx = m.x - Math.cos(m.angle) * m.len;
+        const ty = m.y - Math.sin(m.angle) * m.len;
+        const grad = ctx.createLinearGradient(m.x, m.y, tx, ty);
+        grad.addColorStop(0, `rgba(255, 240, 200, ${m.alpha})`);
+        grad.addColorStop(0.4, `rgba(124, 226, 255, ${m.alpha * 0.55})`);
+        grad.addColorStop(1, "rgba(124, 226, 255, 0)");
+
+        ctx.beginPath();
+        ctx.moveTo(m.x, m.y);
+        ctx.lineTo(tx, ty);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+
+      // 3. Rising Flame Embers (炽焰火星)
+      for (let i = 0; i < embers.length; i++) {
+        const e = embers[i];
+        if (!prefersReduced) {
+          e.drift += 0.025;
+          e.x += e.vx + Math.sin(e.drift) * 0.3;
+          e.y += e.vy;
+        }
+
+        const heightRatio = Math.max(0, Math.min(1, e.y / height));
+        const alpha = (isPolarDay ? 0.42 : 0.78) * Math.sin(heightRatio * Math.PI) * e.life;
+
+        if (e.y < -30 || e.x < -40 || e.x > width + 40) {
+          embers[i] = spawnEmber(false);
+          continue;
+        }
+
+        const rGlow = e.r * 3.4;
+        const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, rGlow);
+        if (e.warm > 0.45) {
+          g.addColorStop(0, `rgba(255, 232, 168, ${alpha})`);
+          g.addColorStop(0.45, `rgba(255, 118, 52, ${alpha * 0.65})`);
+          g.addColorStop(1, "rgba(255, 80, 40, 0)");
+        } else {
+          g.addColorStop(0, `rgba(255, 196, 130, ${alpha})`);
+          g.addColorStop(0.45, `rgba(232, 58, 86, ${alpha * 0.6})`);
+          g.addColorStop(1, "rgba(232, 58, 86, 0)");
+        }
+
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, rGlow, 0, Math.PI * 2);
+        ctx.fillStyle = g;
+        ctx.fill();
+      }
+
+      if (!prefersReduced) {
+        requestAnimationFrame(draw);
+      }
+    }
+
+    draw();
+  }
+
+  /* ---------- Theme Initialization (Astral Ember <-> Polar Day) ---------- */
   function initTheme() {
-    const saved = localStorage.getItem("editorial-site-theme");
-    const theme = saved || "light";
+    const saved = localStorage.getItem("astral-site-theme");
+    const theme = saved === "polarday" ? "polarday" : "astral";
     document.documentElement.setAttribute("data-theme", theme);
 
     document.getElementById("theme-toggle").addEventListener("click", () => {
       const current = document.documentElement.getAttribute("data-theme");
-      const next = current === "dark" ? "light" : "dark";
+      const next = current === "polarday" ? "astral" : "polarday";
       document.documentElement.setAttribute("data-theme", next);
-      localStorage.setItem("editorial-site-theme", next);
+      localStorage.setItem("astral-site-theme", next);
+      showToast(next === "polarday" ? "已切换至「极昼天穹」模式" : "已切换至「星辰炽焰」模式");
     });
   }
 
@@ -98,7 +286,7 @@
   /* ---------- Brand & Footer Hydration ---------- */
   function hydrateShell() {
     const { profile } = DATA;
-    document.title = `${profile.name} · 个人主页、简历、论文与博客`;
+    document.title = `${profile.name} · 星辰、火焰与极昼`;
     document.getElementById("brand-name").textContent = profile.name;
     document.getElementById("footer-brand").textContent = `${profile.name} · ${profile.englishName}`;
     document.getElementById("footer-note").textContent = profile.footerNote;
@@ -242,17 +430,17 @@
           </div>
 
           <aside class="hero-portrait-card">
-            <img src="${escapeHtml(profile.avatar)}" alt="${escapeHtml(profile.name)} 头像" />
+            <img src="${escapeHtml(profile.avatar)}" alt="${escapeHtml(profile.name)} 徽章头像" />
             <div class="portrait-caption">
               <span>${escapeHtml(profile.location)}</span>
-              <span>${escapeHtml(profile.initials)}</span>
+              <span>69°N · ${escapeHtml(profile.initials)}</span>
             </div>
           </aside>
         </section>
 
         <section class="editorial-two-col">
           <div class="about-text">
-            <div class="eyebrow">ABOUT ME</div>
+            <div class="eyebrow">ASTRAL PROFILE</div>
             <h2 class="section-title" style="margin-bottom:16px;">关于我与研究方向</h2>
             ${profile.bioParagraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("")}
             <div class="interest-list">
@@ -261,7 +449,7 @@
           </div>
 
           <aside class="news-panel">
-            <h3>近期动态 · News</h3>
+            <h3>近期动态 · Starlog</h3>
             <ul class="news-list">
               ${news
                 .map(
@@ -319,7 +507,7 @@
         <div class="cv-banner">
           <div>
             <div class="eyebrow">CURRICULUM VITAE</div>
-            <h1 class="section-title" style="font-size:2.1rem;">${escapeHtml(profile.name)} · 个人简历</h1>
+            <h1 class="section-title" style="font-size:2.15rem;">${escapeHtml(profile.name)} · 个人简历</h1>
             <p class="section-sub">${escapeHtml(profile.role)} · ${escapeHtml(profile.affiliation)} · ${escapeHtml(
       profile.email
     )}</p>
@@ -457,7 +645,7 @@
         <div class="section-header">
           <div>
             <div class="eyebrow">PUBLICATIONS & PREPRINTS</div>
-            <h1 class="section-title" style="font-size:2.1rem;">论文发表</h1>
+            <h1 class="section-title" style="font-size:2.15rem;">论文发表</h1>
             <p class="section-sub">支持按年份、主题与关键词筛选，每篇论文均提供摘要与一键复制 BibTeX。</p>
           </div>
         </div>
@@ -571,8 +759,8 @@
         <div class="section-header">
           <div>
             <div class="eyebrow">ESSAYS & FIELD NOTES</div>
-            <h1 class="section-title" style="font-size:2.1rem;">个人博客</h1>
-            <p class="section-sub">关于算法研究、工具打磨、排版设计与阅读笔记的长文归档。</p>
+            <h1 class="section-title" style="font-size:2.15rem;">个人博客</h1>
+            <p class="section-sub">关于算法研究、工具打磨、思考随笔与阅读笔记的长文归档。</p>
           </div>
         </div>
 
@@ -769,6 +957,7 @@
   window.addEventListener("scroll", updateReadingProgress, { passive: true });
 
   initTheme();
+  initCosmosCanvas();
   initMobileNav();
   hydrateShell();
   route();

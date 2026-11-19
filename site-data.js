@@ -8,10 +8,10 @@
 
 window.SITE_DATA = {
   profile: {
-    name: "林知微",
-    englishName: "Zhiwei Lin",
-    initials: "Z. Lin",
-    issueLabel: "FOLIO NO. 01 · 个人学术与思考档案",
+    name: "刘哲维",
+    englishName: "Zhewei Liu",
+    initials: "Z. Liu",
+    issueLabel: "STARS · FLAME · POLAR DAY · 个人星图与研究档案",
     role: "机器学习研究者 · 全栈工程师",
     affiliation: "某大学 / 实验室 · 北京",
     location: "中国 · 北京",
@@ -35,7 +35,7 @@ window.SITE_DATA = {
       { label: "Email", url: "mailto:hello@example.com", icon: "mail" },
       { label: "ORCID", url: "https://orcid.org", icon: "orcid" }
     ],
-    footerNote: "愿每一行代码都有温度，每一篇文字都经得起重读。"
+    footerNote: "向星辰发问，以炽焰求索，在极昼的光晕里持续写作。"
   },
 
   /** 首页动态时间线 */
@@ -153,10 +153,10 @@ window.SITE_DATA = {
   /** 论文发表 (Publications) */
   publications: [
     {
-      id: "lin2026folio",
+      id: "liu2026folio",
       title: "FolioVLM: Structure-Preserving Visual Compression for Long-Document Understanding",
-      authors: ["Zhiwei Lin*", "Mingyue Chen*", "Hao Zhang", "Wei Liu"],
-      highlightAuthor: "Zhiwei Lin",
+      authors: ["Zhewei Liu*", "Mingyue Chen*", "Hao Zhang", "Minghao Wang"],
+      highlightAuthor: "Zhewei Liu",
       venue: "arXiv Preprint",
       venueType: "Preprint",
       year: 2026,
@@ -167,21 +167,21 @@ window.SITE_DATA = {
         "多页学术文档与杂志排版图像通常包含高密度文字与复杂图表结构，直接输入高分辨率图像会导致视觉 Token 数量急剧膨胀。本文提出 FolioVLM，一种面向版面结构感知的分层视觉压缩机制：在保留细粒度文字区域的同时对冗余背景进行自适应合并，在 DocVQA、MMLongBench 等长文档基准上以 42% 的视觉 Token 预算达到超越全量 Token 基线的表现。",
       links: {
         pdf: "https://arxiv.org",
-        code: "https://github.com",
+        code: "https://github.com/woyuanfenghsa",
         project: "#home"
       },
-      bibtex: `@article{lin2026foliovlm,
+      bibtex: `@article{liu2026foliovlm,
   title   = {FolioVLM: Structure-Preserving Visual Compression for Long-Document Understanding},
-  author  = {Lin, Zhiwei and Chen, Mingyue and Zhang, Hao and Liu, Wei},
+  author  = {Liu, Zhewei and Chen, Mingyue and Zhang, Hao and Wang, Minghao},
   journal = {arXiv preprint arXiv:2610.01234},
   year    = {2026}
 }`
     },
     {
-      id: "lin2025pruning",
+      id: "liu2025pruning",
       title: "Context-Aware Visual Token Pruning without Retraining for Multimodal LLMs",
-      authors: ["Zhiwei Lin", "Yifan Zhou", "Qian Wu", "Wei Liu"],
-      highlightAuthor: "Zhiwei Lin",
+      authors: ["Zhewei Liu", "Yifan Zhou", "Qian Wu", "Minghao Wang"],
+      highlightAuthor: "Zhewei Liu",
       venue: "NeurIPS 2025",
       venueType: "Conference",
       year: 2025,
@@ -192,11 +192,11 @@ window.SITE_DATA = {
         "现有免训练视觉 Token 剪枝方法多依赖浅层静态注意力分数，容易在复杂推理问题中误删关键细节。我们分析跨层注意力迁移模式，提出基于问题语义引导的上下文剪枝策略，无需任何微调即可即插即用于主流多模态大模型，在 2× 推理加速下将平均性能损失控制在 0.4% 以内。",
       links: {
         pdf: "https://arxiv.org",
-        code: "https://github.com"
+        code: "https://github.com/woyuanfenghsa"
       },
-      bibtex: `@inproceedings{lin2025context,
+      bibtex: `@inproceedings{liu2025context,
   title     = {Context-Aware Visual Token Pruning without Retraining for Multimodal LLMs},
-  author    = {Lin, Zhiwei and Zhou, Yifan and Wu, Qian and Liu, Wei},
+  author    = {Liu, Zhewei and Zhou, Yifan and Wu, Qian and Wang, Minghao},
   booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
   year      = {2025}
 }`
@@ -204,8 +204,8 @@ window.SITE_DATA = {
     {
       id: "chen2025repro",
       title: "Towards Transparent Evaluation in Vision-Language Benchmarks: Pitfalls and Best Practices",
-      authors: ["Mingyue Chen", "Zhiwei Lin", "Shuai Wang"],
-      highlightAuthor: "Zhiwei Lin",
+      authors: ["Mingyue Chen", "Zhewei Liu", "Shuai Wang"],
+      highlightAuthor: "Zhewei Liu",
       venue: "ACL 2025 Findings",
       venueType: "Conference",
       year: 2025,
@@ -216,21 +216,21 @@ window.SITE_DATA = {
         "我们对 14 个广泛使用的视觉-语言评测基准进行了系统性复现审计，发现提示词模板、图像缩放比例与答案解析规则的细微差异可造成高达 4.8% 的分数波动。基于此，我们提出一套标准化评测协议与开源验证工具链，促进社区结果的可比性与透明度。",
       links: {
         pdf: "https://aclanthology.org",
-        code: "https://github.com",
+        code: "https://github.com/woyuanfenghsa",
         project: "#papers"
       },
       bibtex: `@inproceedings{chen2025transparent,
   title     = {Towards Transparent Evaluation in Vision-Language Benchmarks: Pitfalls and Best Practices},
-  author    = {Chen, Mingyue and Lin, Zhiwei and Wang, Shuai},
+  author    = {Chen, Mingyue and Liu, Zhewei and Wang, Shuai},
   booktitle = {Findings of the Association for Computational Linguistics: ACL 2025},
   year      = {2025}
 }`
     },
     {
-      id: "lin2024layout",
+      id: "liu2024layout",
       title: "WarmLayout: Aesthetic Grid Priors for Controllable Graphic Document Synthesis",
-      authors: ["Zhiwei Lin", "Jiaqi Sun", "Wei Liu"],
-      highlightAuthor: "Zhiwei Lin",
+      authors: ["Zhewei Liu", "Jiaqi Sun", "Minghao Wang"],
+      highlightAuthor: "Zhewei Liu",
       venue: "CVPR 2024",
       venueType: "Conference",
       year: 2024,
@@ -241,11 +241,11 @@ window.SITE_DATA = {
         "结合传统平面设计中的网格比例先验与扩散模型条件生成机制，WarmLayout 能够根据用户给定的图文素材自动生成留白均衡、层级清晰的杂志与海报版面，在人工美学盲测中获得显著更高的可读性与视觉舒适度评分。",
       links: {
         pdf: "https://openaccess.thecvf.com",
-        code: "https://github.com"
+        code: "https://github.com/woyuanfenghsa"
       },
-      bibtex: `@inproceedings{lin2024warmlayout,
+      bibtex: `@inproceedings{liu2024warmlayout,
   title     = {WarmLayout: Aesthetic Grid Priors for Controllable Graphic Document Synthesis},
-  author    = {Lin, Zhiwei and Sun, Jiaqi and Liu, Wei},
+  author    = {Liu, Zhewei and Sun, Jiaqi and Wang, Minghao},
   booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
   year      = {2024}
 }`
