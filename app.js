@@ -6,15 +6,24 @@
 
 (function () {
   const DATA = window.SITE_DATA;
+  const COLLECTION = window.PAPER_COLLECTION || {
+    meta: { title: "论文收集", range: "", total: 0, priorityCount: 0, benchmarkCount: 0, datasetCount: 0 },
+    papers: [],
+    benchmarks: [],
+    datasets: [],
+    methodNotes: []
+  };
   const POSTS = window.BLOG_POSTS || [];
   const appEl = document.getElementById("app");
   const progressBar = document.getElementById("reading-progress");
   const toastEl = document.getElementById("toast");
 
   const state = {
+    paperScope: "priority", // "priority" | "all" | "mentioned" | "benchmarks" | "datasets"
     paperYear: "全部",
-    paperTag: "全部",
+    paperCat: "全部",
     paperQuery: "",
+    paperLimit: 30,
     blogTag: "全部",
     blogQuery: ""
   };
@@ -303,69 +312,77 @@
       .join("");
   }
 
-  /* ---------- Helper Renderers ---------- */
-  function formatAuthors(authors, selfName) {
-    return authors
-      .map((a) => {
-        const clean = escapeHtml(a);
-        if (selfName && a.includes(selfName)) {
-          return `<span class="author-self">${clean}</span>`;
-        }
-        return clean;
-      })
-      .join(", ");
+  /* ---------- Helper Renderers (707-Paper Collection) ---------- */
+  function buildBibtex(paper) {
+    const slug = (paper.short || paper.id)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "")
+      .slice(0, 18) || paper.id;
+    const yr = paper.year || "2026";
+    const key = `${slug}${yr}`;
+    const eprintLine = paper.arxiv ? `,\n  eprint  = {${paper.arxiv}},\n  archivePrefix = {arXiv}` : "";
+    const urlLine = paper.url ? `,\n  url     = {${paper.url}}` : "";
+    return `@article{${key},\n  title   = {${paper.title}},\n  year    = {${yr}}${eprintLine}${urlLine}\n}`;
   }
 
-  function renderPublicationCard(pub) {
-    const linkButtons = [];
-    if (pub.links?.pdf) {
-      linkButtons.push(
-        `<a class="btn btn-ghost" href="${escapeHtml(pub.links.pdf)}" target="_blank" rel="noopener noreferrer">PDF ↗</a>`
-      );
-    }
-    if (pub.links?.code) {
-      linkButtons.push(
-        `<a class="btn btn-ghost" href="${escapeHtml(pub.links.code)}" target="_blank" rel="noopener noreferrer">Code ↗</a>`
-      );
-    }
-    if (pub.links?.project) {
-      const isHash = pub.links.project.startsWith("#");
-      linkButtons.push(
-        `<a class="btn btn-ghost" href="${escapeHtml(pub.links.project)}" ${
-          isHash ? "" : 'target="_blank" rel="noopener noreferrer"'
-        }>Project</a>`
-      );
+  function renderCollectionPaperCard(paper) {
+    let badgeHtml = "";
+    if (paper.priWhy === "反复点名") {
+      badgeHtml = `<span class="pill pill-flame">🔥 反复点名</span>`;
+    } else if (paper.priWhy === "点名") {
+      badgeHtml = `<span class="pill pill-flame">⭐ 重点点名</span>`;
+    } else if (paper.priWhy === "项目高度相关" || paper.rel === "高度相关") {
+      badgeHtml = `<span class="pill pill-gold">✦ 项目高度相关</span>`;
+    } else if (paper.mentions > 0) {
+      badgeHtml = `<span class="pill pill-accent">提及 ${paper.mentions} 次</span>`;
     }
 
-    const tagsHtml = (pub.tags || [])
-      .map((t) => `<span class="pill">${escapeHtml(t)}</span>`)
+    const catsHtml = (paper.cats || [])
+      .slice(0, 4)
+      .map((c) => `<span class="pill pill-sage">${escapeHtml(c)}</span>`)
       .join("");
 
+    const metaBits = [];
+    if (paper.arxiv) metaBits.push(`arXiv:${escapeHtml(paper.arxiv)}`);
+    if (paper.submitted) metaBits.push(`首投 ${escapeHtml(paper.submitted)}`);
+    if (paper.source) metaBits.push(escapeHtml(paper.source));
+
+    const showShort = paper.short && paper.short !== paper.title;
+
     return `
-      <article class="card pub-card" data-pub-id="${escapeHtml(pub.id)}">
+      <article class="card pub-card" data-paper-id="${escapeHtml(paper.id)}">
         <div class="pub-meta-top">
-          <span class="pill pill-accent">${escapeHtml(pub.venue)}</span>
-          <span class="pill pill-sage">${escapeHtml(pub.year)}</span>
-          ${pub.note ? `<span class="pub-note">${escapeHtml(pub.note)}</span>` : ""}
+          ${badgeHtml}
+          ${catsHtml}
+          ${metaBits.length ? `<span class="pub-note">${metaBits.join(" · ")}</span>` : ""}
         </div>
-        <h3 class="pub-title">${escapeHtml(pub.title)}</h3>
-        <p class="pub-authors">${formatAuthors(pub.authors, pub.highlightAuthor)}</p>
+        <h3 class="pub-title">
+          ${showShort ? `<span class="paper-short-name">[${escapeHtml(paper.short)}]</span>` : ""}${escapeHtml(
+      paper.title
+    )}
+        </h3>
+        ${paper.method ? `<p class="paper-method">${escapeHtml(paper.method)}</p>` : ""}
+        ${
+          paper.notes
+            ? `<div class="paper-note-box"><strong>阅读重点 / 备注：</strong>${escapeHtml(paper.notes)}</div>`
+            : ""
+        }
         <div class="pub-actions">
-          ${linkButtons.join("")}
-          <button type="button" class="btn btn-ghost js-toggle-abstract" data-id="${escapeHtml(pub.id)}">摘要</button>
-          <button type="button" class="btn btn-ghost js-toggle-bib" data-id="${escapeHtml(pub.id)}">BibTeX</button>
-          <span style="flex:1"></span>
-          ${tagsHtml}
-        </div>
-        <div class="pub-drawer hidden" id="abs-${escapeHtml(pub.id)}">
-          <strong>论文摘要：</strong>${escapeHtml(pub.abstract)}
-        </div>
-        <div class="pub-drawer bibtex-box hidden" id="bib-${escapeHtml(pub.id)}">
-          <div class="bibtex-copy-row">
-            <span>BIBTEX CITATION</span>
-            <button type="button" class="btn btn-ghost js-copy-bib" data-id="${escapeHtml(pub.id)}">一键复制</button>
-          </div>
-          <pre><code>${escapeHtml(pub.bibtex)}</code></pre>
+          ${
+            paper.url
+              ? `<a class="btn btn-ghost" href="${escapeHtml(paper.url)}" target="_blank" rel="noopener noreferrer">原文 / arXiv ↗</a>`
+              : ""
+          }
+          ${
+            paper.arxiv
+              ? `<button type="button" class="btn btn-ghost js-copy-arxiv" data-arxiv="${escapeHtml(
+                  paper.arxiv
+                )}">复制 arXiv ID</button>`
+              : ""
+          }
+          <button type="button" class="btn btn-ghost js-copy-paper-bib" data-id="${escapeHtml(
+            paper.id
+          )}">复制 BibTeX</button>
         </div>
       </article>
     `;
@@ -397,8 +414,9 @@
 
   /* ---------- Views ---------- */
   function renderHome() {
-    const { profile, news, publications } = DATA;
-    const featuredPubs = publications.filter((p) => p.featured).slice(0, 3);
+    const { profile, news } = DATA;
+    const totalPapers = COLLECTION.meta.total || COLLECTION.papers.length;
+    const featuredPapers = COLLECTION.papers.filter((p) => p.priOrder > 0).slice(0, 4);
     const recentPosts = POSTS.slice(0, 2);
 
     appEl.innerHTML = `
@@ -414,7 +432,7 @@
             <p class="hero-tagline">${escapeHtml(profile.tagline)}</p>
             <div class="hero-actions">
               <a href="#cv" class="btn btn-primary">查看个人简历</a>
-              <a href="#papers" class="btn btn-secondary">论文发表 (${publications.length})</a>
+              <a href="#papers" class="btn btn-secondary">论文收集 (${totalPapers})</a>
               <a href="#blog" class="btn btn-secondary">阅读博客 (${POSTS.length})</a>
             </div>
             <div class="social-row">
@@ -471,13 +489,13 @@
         <section class="section-block">
           <div class="section-header">
             <div>
-              <div class="eyebrow">SELECTED PUBLICATIONS</div>
-              <h2 class="section-title">精选论文</h2>
+              <div class="eyebrow">PRIORITY READING LIST</div>
+              <h2 class="section-title">精选论文收集 · 优先精读</h2>
             </div>
-            <a href="#papers" class="btn btn-ghost">查看全部论文 →</a>
+            <a href="#papers" class="btn btn-ghost">浏览全部 ${totalPapers} 篇论文 →</a>
           </div>
           <div class="pub-list">
-            ${featuredPubs.map(renderPublicationCard).join("")}
+            ${featuredPapers.map(renderCollectionPaperCard).join("")}
           </div>
         </section>
 
@@ -496,7 +514,7 @@
       </div>
     `;
 
-    bindPublicationInteractions();
+    bindPaperCollectionActions();
     bindPostCardClicks();
   }
 
@@ -514,7 +532,7 @@
           </div>
           <div class="no-print" style="display:flex;gap:10px;">
             <button type="button" class="btn btn-primary" id="print-cv-btn">导出 / 打印 PDF</button>
-            <a href="#papers" class="btn btn-secondary">完整论文列表</a>
+            <a href="#papers" class="btn btn-secondary">论文收集 (${COLLECTION.meta.total || COLLECTION.papers.length})</a>
           </div>
         </div>
 
@@ -632,47 +650,204 @@
   }
 
   function renderPapers() {
-    const pubs = DATA.publications;
-    const years = ["全部", ...Array.from(new Set(pubs.map((p) => String(p.year)))).sort((a, b) => b - a)];
-    const allTags = ["全部", ...Array.from(new Set(pubs.flatMap((p) => p.tags || [])))];
-    const firstAuthorCount = pubs.filter(
-      (p) => p.authors[0] && p.authors[0].includes(p.highlightAuthor)
-    ).length;
-    const openSourceCount = pubs.filter((p) => p.links && p.links.code).length;
+    const allPapers = COLLECTION.papers || [];
+    const priorityPapers = allPapers.filter((p) => p.priOrder > 0);
+    const mentionedPapers = allPapers.filter(
+      (p) => (p.priWhy && p.priWhy.includes("点名")) || p.mentions > 0
+    );
+    const benchmarks = COLLECTION.benchmarks || [];
+    const datasets = COLLECTION.datasets || [];
+    const methodNotes = COLLECTION.methodNotes || [];
 
     appEl.innerHTML = `
       <div class="container view-fade">
         <div class="section-header">
           <div>
-            <div class="eyebrow">PUBLICATIONS & PREPRINTS</div>
-            <h1 class="section-title" style="font-size:2.15rem;">论文发表</h1>
-            <p class="section-sub">支持按年份、主题与关键词筛选，每篇论文均提供摘要与一键复制 BibTeX。</p>
+            <div class="eyebrow">GENERATIVE VISION PAPER ARCHIVE · ${escapeHtml(COLLECTION.meta.range || "")}</div>
+            <h1 class="section-title" style="font-size:2.15rem;">论文收集</h1>
+            <p class="section-sub">收录生成视觉方向去重论文 ${allPapers.length} 篇，含 ${priorityPapers.length} 篇优先精读清单、Teacher/Student 指标对照与配套数据集。</p>
           </div>
         </div>
 
         <div class="stats-strip">
           <div class="stat-box">
-            <div class="stat-num">${pubs.length}</div>
-            <div class="stat-label">已收录论文与预印本</div>
+            <div class="stat-num">${allPapers.length}</div>
+            <div class="stat-label">去重收录总论文</div>
           </div>
           <div class="stat-box">
-            <div class="stat-num">${firstAuthorCount}</div>
-            <div class="stat-label">第一作者 / 共同一作</div>
+            <div class="stat-num">${priorityPapers.length}</div>
+            <div class="stat-label">优先精读 / 高相关</div>
           </div>
           <div class="stat-box">
-            <div class="stat-num">${openSourceCount}</div>
-            <div class="stat-label">附带开源代码仓库</div>
+            <div class="stat-num">${benchmarks.length}</div>
+            <div class="stat-label">Teacher 指标对照</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num">${datasets.length}</div>
+            <div class="stat-label">配套数据集与权重</div>
           </div>
         </div>
 
+        <div class="scope-tabs" id="paper-scope-tabs">
+          <button type="button" class="scope-tab ${state.paperScope === "priority" ? "active" : ""}" data-scope="priority">
+            🔥 优先精读 <span class="scope-count">${priorityPapers.length}</span>
+          </button>
+          <button type="button" class="scope-tab ${state.paperScope === "all" ? "active" : ""}" data-scope="all">
+            ✦ 全部收录 <span class="scope-count">${allPapers.length}</span>
+          </button>
+          <button type="button" class="scope-tab ${state.paperScope === "mentioned" ? "active" : ""}" data-scope="mentioned">
+            ⭐ 重点点名 <span class="scope-count">${mentionedPapers.length}</span>
+          </button>
+          <button type="button" class="scope-tab ${state.paperScope === "benchmarks" ? "active" : ""}" data-scope="benchmarks">
+            📊 Teacher 指标对照 <span class="scope-count">${benchmarks.length}</span>
+          </button>
+          <button type="button" class="scope-tab ${state.paperScope === "datasets" ? "active" : ""}" data-scope="datasets">
+            📦 数据集与说明 <span class="scope-count">${datasets.length}</span>
+          </button>
+        </div>
+
+        <div id="paper-scope-body"></div>
+      </div>
+    `;
+
+    function getScopedPapers() {
+      if (state.paperScope === "priority") return priorityPapers;
+      if (state.paperScope === "mentioned") return mentionedPapers;
+      return allPapers;
+    }
+
+    function renderScopeBody() {
+      const bodyEl = document.getElementById("paper-scope-body");
+
+      if (state.paperScope === "benchmarks") {
+        bodyEl.innerHTML = `
+          <p class="section-sub" style="margin:0 0 18px;">只做同一篇论文内的可比实验；不同指标名称、归一化或标度不可用于跨论文排名。</p>
+          <div class="bench-table-card">
+            <div class="table-wrap" style="margin:0;">
+              <table class="bench-table">
+                <thead>
+                  <tr>
+                    <th>论文</th>
+                    <th>底座 / 任务</th>
+                    <th>指标（越高越好）</th>
+                    <th>Teacher</th>
+                    <th>Student</th>
+                    <th>差值</th>
+                    <th>结论边界</th>
+                    <th>原文</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${benchmarks
+                    .map((b) => {
+                      const isPos = typeof b.delta === "number" ? b.delta >= 0 : true;
+                      const deltaText =
+                        typeof b.delta === "number"
+                          ? `${b.delta >= 0 ? "+" : ""}${b.delta}`
+                          : escapeHtml(b.delta);
+                      return `
+                        <tr>
+                          <td><strong>${escapeHtml(b.paper)}</strong><br /><span class="pub-note">${escapeHtml(
+                        b.arxiv
+                      )}</span></td>
+                          <td>${escapeHtml(b.base)}</td>
+                          <td>${escapeHtml(b.metric)}</td>
+                          <td class="bench-num">${escapeHtml(b.teacher)}</td>
+                          <td class="bench-num">${escapeHtml(b.student)}</td>
+                          <td class="${isPos ? "delta-pos" : "delta-neg"}">${deltaText}</td>
+                          <td style="color:var(--ink-secondary);min-width:220px;">${escapeHtml(b.boundary)}</td>
+                          <td>${
+                            b.url
+                              ? `<a class="btn btn-ghost" href="${escapeHtml(
+                                  b.url
+                                )}" target="_blank" rel="noopener noreferrer">链接 ↗</a>`
+                              : "-"
+                          }</td>
+                        </tr>
+                      `;
+                    })
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.paperScope === "datasets") {
+        bodyEl.innerHTML = `
+          <h2 class="cv-section-title" style="margin-top:8px;">配套数据集与模型权重</h2>
+          <div class="cards-grid-2" style="margin-bottom:38px;">
+            ${datasets
+              .map(
+                (d) => `
+              <div class="card">
+                <div class="pub-meta-top">
+                  <span class="pill pill-sage">${escapeHtml(d.type)}</span>
+                </div>
+                <h3 class="pub-title" style="margin-bottom:8px;">${escapeHtml(d.name)}</h3>
+                <p class="paper-method" style="margin-bottom:14px;">${escapeHtml(d.desc)}</p>
+                <a class="btn btn-ghost" href="${escapeHtml(
+                  d.url
+                )}" target="_blank" rel="noopener noreferrer">打开 Hugging Face / 入口 ↗</a>
+              </div>
+            `
+              )
+              .join("")}
+          </div>
+
+          <h2 class="cv-section-title">收录口径与核对说明</h2>
+          <div class="pub-list">
+            ${methodNotes
+              .map(
+                (n) => `
+              <div class="card">
+                <div class="pub-meta-top">
+                  <span class="pill pill-accent">${escapeHtml(n.type)}</span>
+                  <strong style="color:var(--ink);">${escapeHtml(n.name)}</strong>
+                </div>
+                <p class="paper-method" style="margin:0;">${escapeHtml(n.desc)}</p>
+              </div>
+            `
+              )
+              .join("")}
+          </div>
+        `;
+        return;
+      }
+
+      // Paper list scopes: priority | all | mentioned
+      const scoped = getScopedPapers();
+      const catCounts = new Map();
+      for (const p of scoped) {
+        const list = state.paperScope === "priority" && p.priDir ? [p.priDir] : p.cats || [];
+        for (const c of list) {
+          catCounts.set(c, (catCounts.get(c) || 0) + 1);
+        }
+      }
+      const sortedCats = Array.from(catCounts.entries()).sort((a, b) => b[1] - a[1]);
+      if (state.paperCat !== "全部" && !catCounts.has(state.paperCat)) {
+        state.paperCat = "全部";
+      }
+
+      const years = [
+        "全部",
+        ...Array.from(new Set(scoped.map((p) => p.year).filter(Boolean))).sort((a, b) => b.localeCompare(a))
+      ];
+      if (state.paperYear !== "全部" && !years.includes(state.paperYear)) {
+        state.paperYear = "全部";
+      }
+
+      bodyEl.innerHTML = `
         <div class="filter-toolbar">
           <div class="filter-pills" id="paper-year-filters">
             ${years
               .map(
                 (y) =>
-                  `<button type="button" class="filter-pill ${state.paperYear === y ? "active" : ""}" data-year="${escapeHtml(
-                    y
-                  )}">${escapeHtml(y)}</button>`
+                  `<button type="button" class="filter-pill ${
+                    state.paperYear === y ? "active" : ""
+                  }" data-year="${escapeHtml(y)}">${y === "全部" ? "全部年份" : escapeHtml(y)}</button>`
               )
               .join("")}
           </div>
@@ -680,75 +855,119 @@
             type="search"
             id="paper-search"
             class="search-input"
-            placeholder="搜索标题、会议、作者..."
+            style="min-width:290px;"
+            placeholder="搜索简称、英文标题、arXiv ID、方法或备注..."
             value="${escapeHtml(state.paperQuery)}"
           />
         </div>
 
-        <div class="filter-pills" id="paper-tag-filters" style="margin-bottom:24px;">
-          ${allTags
+        <div class="cat-filter-row" id="paper-cat-filters">
+          <button type="button" class="filter-pill ${
+            state.paperCat === "全部" ? "active" : ""
+          }" data-cat="全部">全部方向 <span class="cat-count">${scoped.length}</span></button>
+          ${sortedCats
             .map(
-              (t) =>
-                `<button type="button" class="filter-pill ${state.paperTag === t ? "active" : ""}" data-tag="${escapeHtml(
-                  t
-                )}">${t === "全部" ? "全部主题" : "#" + escapeHtml(t)}</button>`
+              ([cat, count]) =>
+                `<button type="button" class="filter-pill ${
+                  state.paperCat === cat ? "active" : ""
+                }" data-cat="${escapeHtml(cat)}">${escapeHtml(cat)} <span class="cat-count">${count}</span></button>`
             )
             .join("")}
         </div>
 
+        <div class="results-bar" id="paper-results-bar"></div>
         <div class="pub-list" id="paper-list-container"></div>
-      </div>
-    `;
+        <div class="load-more-wrap" id="paper-load-more"></div>
+      `;
 
-    function updatePaperList() {
-      const q = state.paperQuery.trim().toLowerCase();
-      const filtered = pubs.filter((p) => {
-        const matchYear = state.paperYear === "全部" || String(p.year) === state.paperYear;
-        const matchTag = state.paperTag === "全部" || (p.tags || []).includes(state.paperTag);
-        const matchQuery =
-          !q ||
-          p.title.toLowerCase().includes(q) ||
-          p.venue.toLowerCase().includes(q) ||
-          p.authors.join(" ").toLowerCase().includes(q) ||
-          (p.abstract || "").toLowerCase().includes(q);
-        return matchYear && matchTag && matchQuery;
+      function updatePaperList() {
+        const q = state.paperQuery.trim().toLowerCase();
+        const filtered = scoped.filter((p) => {
+          const matchYear = state.paperYear === "全部" || p.year === state.paperYear;
+          const catsToCheck = state.paperScope === "priority" && p.priDir ? [p.priDir, ...(p.cats || [])] : p.cats || [];
+          const matchCat = state.paperCat === "全部" || catsToCheck.includes(state.paperCat);
+          const matchQuery =
+            !q ||
+            (p.short || "").toLowerCase().includes(q) ||
+            (p.title || "").toLowerCase().includes(q) ||
+            (p.arxiv || "").toLowerCase().includes(q) ||
+            (p.method || "").toLowerCase().includes(q) ||
+            (p.notes || "").toLowerCase().includes(q) ||
+            (p.cats || []).join(" ").toLowerCase().includes(q);
+          return matchYear && matchCat && matchQuery;
+        });
+
+        const visible = filtered.slice(0, state.paperLimit);
+        const barEl = document.getElementById("paper-results-bar");
+        const listEl = document.getElementById("paper-list-container");
+        const moreEl = document.getElementById("paper-load-more");
+
+        barEl.innerHTML = `<span>当前匹配 ${filtered.length} 篇 · 已展示 ${visible.length} 篇</span><span>按优先度与首投时间排序</span>`;
+
+        if (!filtered.length) {
+          listEl.innerHTML = `<div class="empty-state">没有找到符合条件的论文，试试清空搜索词或切换方向标签。</div>`;
+          moreEl.innerHTML = "";
+          return;
+        }
+
+        listEl.innerHTML = visible.map(renderCollectionPaperCard).join("");
+        bindPaperCollectionActions();
+
+        if (filtered.length > visible.length) {
+          const remaining = filtered.length - visible.length;
+          moreEl.innerHTML = `<button type="button" class="btn btn-secondary" id="load-more-papers-btn">加载更多论文（剩余 ${remaining} 篇）</button>`;
+          document.getElementById("load-more-papers-btn").addEventListener("click", () => {
+            state.paperLimit += 40;
+            updatePaperList();
+          });
+        } else {
+          moreEl.innerHTML = "";
+        }
+      }
+
+      document.getElementById("paper-year-filters").addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-year]");
+        if (!btn) return;
+        state.paperYear = btn.dataset.year;
+        state.paperLimit = 30;
+        document
+          .querySelectorAll("#paper-year-filters .filter-pill")
+          .forEach((b) => b.classList.toggle("active", b === btn));
+        updatePaperList();
       });
 
-      const listEl = document.getElementById("paper-list-container");
-      if (!filtered.length) {
-        listEl.innerHTML = `<div class="empty-state">没有找到符合条件的论文，试试切换筛选标签吧。</div>`;
-        return;
-      }
-      listEl.innerHTML = filtered.map(renderPublicationCard).join("");
-      bindPublicationInteractions();
+      document.getElementById("paper-cat-filters").addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-cat]");
+        if (!btn) return;
+        state.paperCat = btn.dataset.cat;
+        state.paperLimit = 30;
+        document
+          .querySelectorAll("#paper-cat-filters .filter-pill")
+          .forEach((b) => b.classList.toggle("active", b === btn));
+        updatePaperList();
+      });
+
+      document.getElementById("paper-search").addEventListener("input", (e) => {
+        state.paperQuery = e.target.value;
+        state.paperLimit = 30;
+        updatePaperList();
+      });
+
+      updatePaperList();
     }
 
-    document.getElementById("paper-year-filters").addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-year]");
+    document.getElementById("paper-scope-tabs").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-scope]");
       if (!btn) return;
-      state.paperYear = btn.dataset.year;
+      state.paperScope = btn.dataset.scope;
+      state.paperLimit = 30;
       document
-        .querySelectorAll("#paper-year-filters .filter-pill")
+        .querySelectorAll("#paper-scope-tabs .scope-tab")
         .forEach((b) => b.classList.toggle("active", b === btn));
-      updatePaperList();
+      renderScopeBody();
     });
 
-    document.getElementById("paper-tag-filters").addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-tag]");
-      if (!btn) return;
-      state.paperTag = btn.dataset.tag;
-      document
-        .querySelectorAll("#paper-tag-filters .filter-pill")
-        .forEach((b) => b.classList.toggle("active", b === btn));
-      updatePaperList();
-    });
-
-    document.getElementById("paper-search").addEventListener("input", (e) => {
-      state.paperQuery = e.target.value;
-      updatePaperList();
-    });
-
-    updatePaperList();
+    renderScopeBody();
   }
 
   function renderBlogList() {
@@ -890,25 +1109,17 @@
   }
 
   /* ---------- Interactive Bindings ---------- */
-  function bindPublicationInteractions() {
-    document.querySelectorAll(".js-toggle-abstract").forEach((btn) => {
+  function bindPaperCollectionActions() {
+    document.querySelectorAll(".js-copy-arxiv").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const el = document.getElementById(`abs-${btn.dataset.id}`);
-        if (el) el.classList.toggle("hidden");
+        copyText(btn.dataset.arxiv, `已复制 arXiv ID: ${btn.dataset.arxiv}`);
       });
     });
 
-    document.querySelectorAll(".js-toggle-bib").forEach((btn) => {
+    document.querySelectorAll(".js-copy-paper-bib").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const el = document.getElementById(`bib-${btn.dataset.id}`);
-        if (el) el.classList.toggle("hidden");
-      });
-    });
-
-    document.querySelectorAll(".js-copy-bib").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const pub = DATA.publications.find((p) => p.id === btn.dataset.id);
-        if (pub) copyText(pub.bibtex, "已复制 BibTeX 引用到剪贴板");
+        const paper = (COLLECTION.papers || []).find((p) => p.id === btn.dataset.id);
+        if (paper) copyText(buildBibtex(paper), "已复制 BibTeX 引用到剪贴板");
       });
     });
   }
