@@ -19,7 +19,7 @@
   const toastEl = document.getElementById("toast");
 
   const state = {
-    paperScope: "priority", // "priority" | "all" | "mentioned" | "benchmarks" | "datasets"
+    paperScope: "latest", // "latest" | "priority" | "all" | "mentioned" | "benchmarks" | "datasets"
     paperYear: "全部",
     paperCat: "全部",
     paperQuery: "",
@@ -337,6 +337,18 @@
       badgeHtml = `<span class="pill pill-accent">提及 ${paper.mentions} 次</span>`;
     }
 
+    let batchHtml = "";
+    if (paper.batch) {
+      const icon = paper.entryType === "新论文" ? "🆕" : "🔄";
+      batchHtml = `<span class="pill pill-accent">${icon} 11.20–27 · ${escapeHtml(
+        paper.entryType || "新增"
+      )}</span>`;
+    }
+
+    const stageHtml = paper.stage
+      ? `<span class="pill">${escapeHtml(paper.stage)}</span>`
+      : "";
+
     const catsHtml = (paper.cats || [])
       .slice(0, 4)
       .map((c) => `<span class="pill pill-sage">${escapeHtml(c)}</span>`)
@@ -345,15 +357,17 @@
     const metaBits = [];
     if (paper.arxiv) metaBits.push(`arXiv:${escapeHtml(paper.arxiv)}`);
     if (paper.submitted) metaBits.push(`首投 ${escapeHtml(paper.submitted)}`);
-    if (paper.source) metaBits.push(escapeHtml(paper.source));
+    if (paper.discussed) metaBits.push(`讨论 ${escapeHtml(paper.discussed)}`);
 
     const showShort = paper.short && paper.short !== paper.title;
 
     return `
       <article class="card pub-card" data-paper-id="${escapeHtml(paper.id)}">
         <div class="pub-meta-top">
+          ${batchHtml}
           ${badgeHtml}
           ${catsHtml}
+          ${stageHtml}
           ${metaBits.length ? `<span class="pub-note">${metaBits.join(" · ")}</span>` : ""}
         </div>
         <h3 class="pub-title">
@@ -651,6 +665,10 @@
 
   function renderPapers() {
     const allPapers = COLLECTION.papers || [];
+    const latestBatchId = COLLECTION.meta.latestBatch || "";
+    const latestPapers = allPapers
+      .filter((p) => p.batch && (!latestBatchId || p.batch === latestBatchId))
+      .sort((a, b) => (a.batchOrder || 9999) - (b.batchOrder || 9999));
     const priorityPapers = allPapers.filter((p) => p.priOrder > 0);
     const mentionedPapers = allPapers.filter(
       (p) => (p.priWhy && p.priWhy.includes("点名")) || p.mentions > 0
@@ -665,7 +683,7 @@
           <div>
             <div class="eyebrow">GENERATIVE VISION PAPER ARCHIVE · ${escapeHtml(COLLECTION.meta.range || "")}</div>
             <h1 class="section-title" style="font-size:2.15rem;">论文收集</h1>
-            <p class="section-sub">收录生成视觉方向去重论文 ${allPapers.length} 篇，含 ${priorityPapers.length} 篇优先精读清单、Teacher/Student 指标对照与配套数据集。</p>
+            <p class="section-sub">收录生成视觉方向去重论文 ${allPapers.length} 篇（含 11.20–11.27 最新增量 ${latestPapers.length} 篇）、${priorityPapers.length} 篇优先精读清单、Teacher/Student 指标对照与配套数据集。</p>
           </div>
         </div>
 
@@ -675,6 +693,10 @@
             <div class="stat-label">去重收录总论文</div>
           </div>
           <div class="stat-box">
+            <div class="stat-num">${latestPapers.length}</div>
+            <div class="stat-label">11.20–27 最新增量</div>
+          </div>
+          <div class="stat-box">
             <div class="stat-num">${priorityPapers.length}</div>
             <div class="stat-label">优先精读 / 高相关</div>
           </div>
@@ -682,13 +704,12 @@
             <div class="stat-num">${benchmarks.length}</div>
             <div class="stat-label">Teacher 指标对照</div>
           </div>
-          <div class="stat-box">
-            <div class="stat-num">${datasets.length}</div>
-            <div class="stat-label">配套数据集与权重</div>
-          </div>
         </div>
 
         <div class="scope-tabs" id="paper-scope-tabs">
+          <button type="button" class="scope-tab ${state.paperScope === "latest" ? "active" : ""}" data-scope="latest">
+            🆕 11.20–27 增量 <span class="scope-count">${latestPapers.length}</span>
+          </button>
           <button type="button" class="scope-tab ${state.paperScope === "priority" ? "active" : ""}" data-scope="priority">
             🔥 优先精读 <span class="scope-count">${priorityPapers.length}</span>
           </button>
@@ -711,6 +732,7 @@
     `;
 
     function getScopedPapers() {
+      if (state.paperScope === "latest") return latestPapers;
       if (state.paperScope === "priority") return priorityPapers;
       if (state.paperScope === "mentioned") return mentionedPapers;
       return allPapers;
@@ -891,6 +913,8 @@
             (p.short || "").toLowerCase().includes(q) ||
             (p.title || "").toLowerCase().includes(q) ||
             (p.arxiv || "").toLowerCase().includes(q) ||
+            (p.stage || "").toLowerCase().includes(q) ||
+            (p.entryType || "").toLowerCase().includes(q) ||
             (p.method || "").toLowerCase().includes(q) ||
             (p.notes || "").toLowerCase().includes(q) ||
             (p.cats || []).join(" ").toLowerCase().includes(q);

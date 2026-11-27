@@ -41,6 +41,11 @@ window.SITE_DATA = {
   /** 首页动态时间线 */
   news: [
     {
+      date: "2026.11",
+      tag: "论文库",
+      text: "完成 11.20–11.27 生成视觉论文增量入库（+59 篇，含 DiffusionART、SPM、DexOPD、iTDM、CCR 等），总收录达 765 篇。"
+    },
+    {
       date: "2026.10",
       tag: "论文",
       text: "一篇关于轻量级多模态对齐的新工作已上线 arXiv，代码与评测基准同步开源。"
