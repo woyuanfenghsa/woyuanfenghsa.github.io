@@ -6,6 +6,10 @@
 
 (function () {
   const DATA = window.SITE_DATA;
+  const DAILY = window.DAILY_PAPERS || {
+    meta: { updatedAt: "", totalDays: 0, totalPapers: 0, star5Total: 0, latestDate: "", schedule: "", focusSummary: "" },
+    days: []
+  };
   const COLLECTION = window.PAPER_COLLECTION || {
     meta: { title: "论文收集", range: "", total: 0, priorityCount: 0, benchmarkCount: 0, datasetCount: 0 },
     papers: [],
@@ -18,7 +22,14 @@
   const progressBar = document.getElementById("reading-progress");
   const toastEl = document.getElementById("toast");
 
+  const STAR_STORAGE_KEY = "zhewei_starred_papers_v1";
+
   const state = {
+    dailyMinStars: 0, // 0 = all, 5, 4, 3
+    dailyTag: "全部",
+    dailyDate: "全部",
+    dailyQuery: "",
+    collapsedDays: {},
     paperScope: "latest", // "latest" | "priority" | "all" | "mentioned" | "benchmarks" | "datasets"
     paperYear: "全部",
     paperCat: "全部",
@@ -27,6 +38,100 @@
     blogTag: "全部",
     blogQuery: ""
   };
+
+  /* ---------- Persistent Star-to-Pin Store ---------- */
+  function loadStars() {
+    try {
+      const raw = localStorage.getItem(STAR_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  let starredMap = loadStars();
+
+  function saveStars() {
+    try {
+      localStorage.setItem(STAR_STORAGE_KEY, JSON.stringify(starredMap));
+    } catch {
+      showToast("本地存储空间不足，无法保存置顶状态");
+    }
+  }
+
+  function getStarKey(paper) {
+    if (paper.baseId) return String(paper.baseId);
+    if (paper.arxiv) return String(paper.arxiv).replace(/v\d+$/i, "");
+    return String(paper.id || paper.title);
+  }
+
+  function isPaperStarred(paper) {
+    return Boolean(starredMap[getStarKey(paper)]);
+  }
+
+  function togglePaperStar(paper, sourceType) {
+    const key = getStarKey(paper);
+    if (starredMap[key]) {
+      delete starredMap[key];
+      saveStars();
+      showToast("已取消置顶");
+      return false;
+    }
+    starredMap[key] = {
+      pinnedAt: Date.now(),
+      snapshot: {
+        id: paper.id,
+        baseId: key,
+        arxiv: paper.arxiv || "",
+        short: paper.short || "",
+        title: paper.title || "",
+        authors: paper.authors || [],
+        date: paper.date || paper.submitted || "",
+        stars: paper.stars || 5,
+        score: paper.score || 0,
+        modality: paper.modality || "",
+        tags: paper.tags || paper.cats || [],
+        reason: paper.reason || paper.method || "",
+        abstract: paper.abstract || paper.notes || "",
+        url: paper.url || (paper.arxiv ? `https://arxiv.org/abs/${paper.arxiv}` : ""),
+        pdf: paper.pdf || (paper.arxiv ? `https://arxiv.org/pdf/${paper.arxiv}` : ""),
+        sourceType: sourceType || "daily"
+      }
+    };
+    saveStars();
+    showToast("★ 已 Star 置顶到顶部「我的置顶论文」");
+    return true;
+  }
+
+  function getStarredList() {
+    return Object.values(starredMap)
+      .sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0))
+      .map((entry) => entry.snapshot);
+  }
+
+  function findPaperByStarKey(key) {
+    for (const d of DAILY.days || []) {
+      for (const p of d.papers || []) {
+        if (getStarKey(p) === key) return { paper: p, source: "daily" };
+      }
+    }
+    for (const p of COLLECTION.papers || []) {
+      if (getStarKey(p) === key) return { paper: p, source: "collection" };
+    }
+    if (starredMap[key]) {
+      return { paper: starredMap[key].snapshot, source: starredMap[key].snapshot.sourceType || "daily" };
+    }
+    return null;
+  }
+
+  function formatWeekday(dateStr) {
+    const m = String(dateStr || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "";
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    return names[d.getDay()] || "";
+  }
 
   let toastTimer = null;
 
@@ -360,15 +465,24 @@
     if (paper.discussed) metaBits.push(`讨论 ${escapeHtml(paper.discussed)}`);
 
     const showShort = paper.short && paper.short !== paper.title;
+    const starKey = getStarKey(paper);
+    const starred = isPaperStarred(paper);
 
     return `
-      <article class="card pub-card" data-paper-id="${escapeHtml(paper.id)}">
-        <div class="pub-meta-top">
-          ${batchHtml}
-          ${badgeHtml}
-          ${catsHtml}
-          ${stageHtml}
-          ${metaBits.length ? `<span class="pub-note">${metaBits.join(" · ")}</span>` : ""}
+      <article class="card pub-card ${starred ? "card-starred" : ""}" data-paper-id="${escapeHtml(paper.id)}">
+        <div class="card-header-split">
+          <div class="pub-meta-top" style="margin-bottom:0;">
+            ${batchHtml}
+            ${badgeHtml}
+            ${catsHtml}
+            ${stageHtml}
+            ${metaBits.length ? `<span class="pub-note">${metaBits.join(" · ")}</span>` : ""}
+          </div>
+          <button type="button" class="star-btn ${starred ? "is-starred" : ""} js-toggle-star" data-star-key="${escapeHtml(
+      starKey
+    )}" data-source="collection" title="点击置顶到我的关注列表">
+            ${starred ? "★ 已置顶" : "☆ Star 置顶"}
+          </button>
         </div>
         <h3 class="pub-title">
           ${showShort ? `<span class="paper-short-name">[${escapeHtml(paper.short)}]</span>` : ""}${escapeHtml(
@@ -426,11 +540,432 @@
     `;
   }
 
+  function renderDailyPaperCard(paper, opts) {
+    const options = opts || {};
+    const starKey = getStarKey(paper);
+    const starred = isPaperStarred(paper);
+    const starsNum = Math.max(1, Math.min(5, Number(paper.stars) || 3));
+    const starGlyphs = "★".repeat(starsNum) + "☆".repeat(5 - starsNum);
+    const ratingClass = `rating-${Math.max(2, starsNum)}`;
+    const absId = `dabs-${options.prefix || "day"}-${escapeHtml(starKey)}`;
+
+    const coreHtml = (paper.coreTags || [])
+      .map((t) => `<span class="pill pill-flame">${escapeHtml(t)}</span>`)
+      .join("");
+    const domainHtml = (paper.domainTags || [])
+      .map((t) => `<span class="pill pill-sage">${escapeHtml(t)}</span>`)
+      .join("");
+    const fallbackTagsHtml =
+      !coreHtml && !domainHtml
+        ? (paper.tags || [])
+            .slice(0, 4)
+            .map((t) => `<span class="pill pill-sage">${escapeHtml(t)}</span>`)
+            .join("")
+        : "";
+
+    const authorsArr = paper.authors || [];
+    const authorsLine = authorsArr.length
+      ? escapeHtml(authorsArr.join(", ")) + (paper.authorCount > authorsArr.length ? ` 等 ${paper.authorCount} 人` : "")
+      : "";
+
+    return `
+      <article class="card pub-card ${starred ? "card-starred" : ""}" data-star-key="${escapeHtml(starKey)}">
+        <div class="card-header-split">
+          <div class="pub-meta-top" style="margin-bottom:0;">
+            <span class="rating-stars ${ratingClass}" title="项目相关度评分 ${escapeHtml(paper.score)}/100">
+              <span>${starGlyphs}</span>
+              ${paper.score ? `<span>${escapeHtml(paper.score)}分</span>` : ""}
+            </span>
+            ${paper.modality ? `<span class="pill pill-gold">${escapeHtml(paper.modality)}</span>` : ""}
+            ${coreHtml}
+            ${domainHtml}
+            ${fallbackTagsHtml}
+          </div>
+          <button
+            type="button"
+            class="star-btn ${starred ? "is-starred" : ""} js-toggle-star"
+            data-star-key="${escapeHtml(starKey)}"
+            data-source="${escapeHtml(options.source || "daily")}"
+            title="${starred ? "取消置顶" : "点击置顶到顶部"}"
+          >
+            ${starred ? "★ 已置顶" : "☆ Star 置顶"}
+          </button>
+        </div>
+
+        <h3 class="pub-title">${escapeHtml(paper.title)}</h3>
+
+        <p class="daily-authors">
+          ${authorsLine ? `${authorsLine} · ` : ""}
+          ${paper.arxiv ? `arXiv:${escapeHtml(paper.arxiv)}` : ""}
+          ${paper.date ? ` · ${escapeHtml(paper.date)}` : ""}
+        </p>
+
+        ${paper.reason ? `<div class="daily-reason">${escapeHtml(paper.reason)}</div>` : ""}
+
+        <div class="pub-actions">
+          ${
+            paper.url
+              ? `<a class="btn btn-ghost" href="${escapeHtml(
+                  paper.url
+                )}" target="_blank" rel="noopener noreferrer">arXiv 原文 ↗</a>`
+              : ""
+          }
+          ${
+            paper.pdf
+              ? `<a class="btn btn-ghost" href="${escapeHtml(
+                  paper.pdf
+                )}" target="_blank" rel="noopener noreferrer">PDF ↗</a>`
+              : ""
+          }
+          ${
+            paper.abstract
+              ? `<button type="button" class="btn btn-ghost js-toggle-daily-abs" data-target="${absId}">展开摘要</button>`
+              : ""
+          }
+          <button type="button" class="btn btn-ghost js-copy-daily-bib" data-star-key="${escapeHtml(
+            starKey
+          )}">复制 BibTeX</button>
+        </div>
+
+        ${
+          paper.abstract
+            ? `<div class="pub-drawer hidden" id="${absId}"><strong>Abstract：</strong>${escapeHtml(
+                paper.abstract
+              )}</div>`
+            : ""
+        }
+      </article>
+    `;
+  }
+
+  function renderDaily() {
+    const days = DAILY.days || [];
+    const meta = DAILY.meta || {};
+    const starredList = getStarredList();
+
+    const directionOptions = [
+      "全部",
+      "少步蒸馏强化",
+      "少步蒸馏",
+      "强化学习",
+      "训练范式",
+      "打光与光影",
+      "色彩迁移",
+      "画质修复",
+      "表情与人像",
+      "视频方向"
+    ];
+
+    appEl.innerHTML = `
+      <div class="container view-fade">
+        <div class="section-header">
+          <div>
+            <div class="eyebrow">DAILY ARXIV RADAR · 每日自动追踪</div>
+            <h1 class="section-title" style="font-size:2.15rem;">每日论文雷达</h1>
+            <p class="section-sub">${escapeHtml(
+              meta.focusSummary ||
+                "图像/视频训练范式 · 少步蒸馏 · 强化学习 · 少步蒸馏强化 · 画质修复 · 打光光影 · 色彩迁移 · 表情人像"
+            )}</p>
+            <div class="radar-banner-meta">
+              <span>⏱ 最近更新：${escapeHtml(meta.updatedAt || "等待首次同步")}</span>
+              <span>·</span>
+              <span>🤖 ${escapeHtml(meta.schedule || "每日自动从 arXiv 更新")}</span>
+            </div>
+          </div>
+          <a
+            href="https://github.com/woyuanfenghsa/woyuanfenghsa.github.io/actions/workflows/daily-papers.yml"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-secondary"
+          >手动触发更新 ↗</a>
+        </div>
+
+        <div class="stats-strip">
+          <div class="stat-box">
+            <div class="stat-num">${meta.totalDays || days.length}</div>
+            <div class="stat-label">已按天归档天数</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num">${meta.totalPapers || 0}</div>
+            <div class="stat-label">近期筛选论文总数</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num">${meta.star5Total || 0}</div>
+            <div class="stat-label">★★★★★ 5星核心推荐</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="daily-starred-count">${starredList.length}</div>
+            <div class="stat-label">⭐ 我的 Star 置顶</div>
+          </div>
+        </div>
+
+        <!-- Pinned / Starred Section -->
+        <section id="daily-pinned-section"></section>
+
+        <!-- Star Rating + Search Toolbar -->
+        <div class="filter-toolbar">
+          <div class="filter-pills" id="daily-star-filters">
+            <button type="button" class="filter-pill ${state.dailyMinStars === 0 ? "active" : ""}" data-stars="0">全部星级</button>
+            <button type="button" class="filter-pill ${state.dailyMinStars === 5 ? "active" : ""}" data-stars="5">★★★★★ 仅5星</button>
+            <button type="button" class="filter-pill ${state.dailyMinStars === 4 ? "active" : ""}" data-stars="4">★★★★+ 4星及以上</button>
+            <button type="button" class="filter-pill ${state.dailyMinStars === 3 ? "active" : ""}" data-stars="3">★★★+ 3星及以上</button>
+          </div>
+          <input
+            type="search"
+            id="daily-search"
+            class="search-input"
+            style="min-width:280px;"
+            placeholder="搜索标题、作者、arXiv ID、方向..."
+            value="${escapeHtml(state.dailyQuery)}"
+          />
+        </div>
+
+        <!-- Direction Filters -->
+        <div class="cat-filter-row" id="daily-tag-filters">
+          ${directionOptions
+            .map(
+              (tag) =>
+                `<button type="button" class="filter-pill ${
+                  state.dailyTag === tag ? "active" : ""
+                }" data-tag="${escapeHtml(tag)}">${tag === "全部" ? "全部方向" : escapeHtml(tag)}</button>`
+            )
+            .join("")}
+        </div>
+
+        <!-- Day Quick Jump Bar -->
+        <div class="day-jump-bar" id="daily-date-filters">
+          <button type="button" class="filter-pill ${state.dailyDate === "全部" ? "active" : ""}" data-date="全部">
+            全部日期 <span class="cat-count">${days.length}天</span>
+          </button>
+          ${days
+            .slice(0, 21)
+            .map(
+              (d) =>
+                `<button type="button" class="filter-pill ${
+                  state.dailyDate === d.date ? "active" : ""
+                }" data-date="${escapeHtml(d.date)}">${escapeHtml(d.date)} <span class="cat-count">${
+                  d.count
+                }</span></button>`
+            )
+            .join("")}
+        </div>
+
+        <div id="daily-days-container"></div>
+      </div>
+    `;
+
+    function renderPinnedPanel() {
+      const pinnedEl = document.getElementById("daily-pinned-section");
+      const countEl = document.getElementById("daily-starred-count");
+      const list = getStarredList();
+      if (countEl) countEl.textContent = String(list.length);
+
+      if (!list.length) {
+        pinnedEl.innerHTML = `
+          <div class="pinned-panel">
+            <div class="pinned-panel-header" style="margin-bottom:0;">
+              <h2 class="pinned-panel-title">⭐ 我的置顶论文（0 篇）</h2>
+              <span class="pub-note">点击任意论文右上角的「☆ Star 置顶」，即可将感兴趣的论文置顶保存在这里</span>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      pinnedEl.innerHTML = `
+        <div class="pinned-panel">
+          <div class="pinned-panel-header">
+            <h2 class="pinned-panel-title">⭐ 我的置顶论文（${list.length} 篇）</h2>
+            <div class="pinned-actions">
+              <button type="button" class="btn btn-ghost" id="copy-starred-md-btn">复制 Markdown 清单</button>
+              <button type="button" class="btn btn-ghost" id="export-starred-btn">导出 JSON</button>
+              <button type="button" class="btn btn-ghost" id="import-starred-btn">导入 JSON</button>
+            </div>
+          </div>
+          <div class="pub-list">
+            ${list.map((p) => renderDailyPaperCard(p, { prefix: "pin", source: p.sourceType || "daily" })).join("")}
+          </div>
+        </div>
+      `;
+
+      document.getElementById("copy-starred-md-btn").addEventListener("click", () => {
+        const md = list
+          .map(
+            (p) =>
+              `- [${p.title}](${p.url || "#"}) (${p.arxiv ? "arXiv:" + p.arxiv : p.date}) — ${"★".repeat(
+                p.stars || 5
+              )} ${p.reason || ""}`
+          )
+          .join("\n");
+        copyText(md, `已复制 ${list.length} 篇置顶论文为 Markdown 清单`);
+      });
+
+      document.getElementById("export-starred-btn").addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify(starredMap, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `starred-papers-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("已导出置顶论文备份 JSON");
+      });
+
+      document.getElementById("import-starred-btn").addEventListener("click", () => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".json,application/json";
+        input.addEventListener("change", () => {
+          const file = input.files && input.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const incoming = JSON.parse(String(reader.result || "{}"));
+              if (incoming && typeof incoming === "object") {
+                starredMap = { ...starredMap, ...incoming };
+                saveStars();
+                showToast("已导入并合并置顶论文列表");
+                refreshDailyUI();
+              }
+            } catch {
+              showToast("JSON 文件格式无效");
+            }
+          };
+          reader.readAsText(file);
+        });
+        input.click();
+      });
+    }
+
+    function renderDayGroups() {
+      const container = document.getElementById("daily-days-container");
+      const q = state.dailyQuery.trim().toLowerCase();
+
+      const blocks = [];
+      let totalMatched = 0;
+
+      for (const dayObj of days) {
+        if (state.dailyDate !== "全部" && dayObj.date !== state.dailyDate) continue;
+
+        const filtered = (dayObj.papers || []).filter((p) => {
+          if (state.dailyMinStars > 0 && (p.stars || 0) < state.dailyMinStars) return false;
+          if (state.dailyTag !== "全部" && !(p.tags || []).includes(state.dailyTag)) return false;
+          if (q) {
+            const blob = `${p.title} ${(p.authors || []).join(" ")} ${p.arxiv} ${p.reason} ${p.abstract} ${(
+              p.tags || []
+            ).join(" ")}`.toLowerCase();
+            if (!blob.includes(q)) return false;
+          }
+          return true;
+        });
+
+        if (!filtered.length) continue;
+
+        // Within each day: Starred papers float to the top, then stars desc, then score desc
+        filtered.sort((a, b) => {
+          const sa = isPaperStarred(a) ? 1 : 0;
+          const sb = isPaperStarred(b) ? 1 : 0;
+          if (sb !== sa) return sb - sa;
+          if ((b.stars || 0) !== (a.stars || 0)) return (b.stars || 0) - (a.stars || 0);
+          return (b.score || 0) - (a.score || 0);
+        });
+
+        totalMatched += filtered.length;
+        const s5Count = filtered.filter((p) => p.stars === 5).length;
+        const starredInDay = filtered.filter((p) => isPaperStarred(p)).length;
+        const isCollapsed = Boolean(state.collapsedDays[dayObj.date]);
+        const weekday = formatWeekday(dayObj.date);
+
+        blocks.push(`
+          <section class="day-group ${isCollapsed ? "collapsed" : ""}" data-day="${escapeHtml(dayObj.date)}">
+            <div class="day-group-header js-toggle-day" data-day="${escapeHtml(dayObj.date)}">
+              <div class="day-group-left">
+                <span class="day-date-label">📅 ${escapeHtml(dayObj.date)}</span>
+                ${weekday ? `<span class="day-weekday">${weekday}</span>` : ""}
+                <span class="pill">${filtered.length} 篇</span>
+                ${s5Count ? `<span class="pill pill-flame">★★★★★ ${s5Count} 篇</span>` : ""}
+                ${starredInDay ? `<span class="pill pill-gold">★ 已置顶 ${starredInDay} 篇</span>` : ""}
+              </div>
+              <span class="day-toggle-icon">${isCollapsed ? "展开 ▾" : "收起 ▴"}</span>
+            </div>
+            <div class="pub-list">
+              ${filtered.map((p) => renderDailyPaperCard(p, { prefix: dayObj.date, source: "daily" })).join("")}
+            </div>
+          </section>
+        `);
+      }
+
+      if (!blocks.length) {
+        container.innerHTML = `<div class="empty-state">当前筛选条件下暂无论文，试试放宽星级或方向筛选条件。</div>`;
+        return;
+      }
+
+      container.innerHTML =
+        `<div class="results-bar"><span>当前共匹配 ${blocks.length} 天 · ${totalMatched} 篇论文</span><span>每天内部：已置顶优先 → 推荐星级从高到低</span></div>` +
+        blocks.join("");
+
+      container.querySelectorAll(".js-toggle-day").forEach((hdr) => {
+        hdr.addEventListener("click", () => {
+          const day = hdr.dataset.day;
+          state.collapsedDays[day] = !state.collapsedDays[day];
+          renderDayGroups();
+          bindDailyAndStarActions(refreshDailyUI);
+        });
+      });
+    }
+
+    function refreshDailyUI() {
+      renderPinnedPanel();
+      renderDayGroups();
+      bindDailyAndStarActions(refreshDailyUI);
+    }
+
+    document.getElementById("daily-star-filters").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-stars]");
+      if (!btn) return;
+      state.dailyMinStars = Number(btn.dataset.stars) || 0;
+      document
+        .querySelectorAll("#daily-star-filters .filter-pill")
+        .forEach((b) => b.classList.toggle("active", b === btn));
+      refreshDailyUI();
+    });
+
+    document.getElementById("daily-tag-filters").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-tag]");
+      if (!btn) return;
+      state.dailyTag = btn.dataset.tag;
+      document
+        .querySelectorAll("#daily-tag-filters .filter-pill")
+        .forEach((b) => b.classList.toggle("active", b === btn));
+      refreshDailyUI();
+    });
+
+    document.getElementById("daily-date-filters").addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-date]");
+      if (!btn) return;
+      state.dailyDate = btn.dataset.date;
+      document
+        .querySelectorAll("#daily-date-filters .filter-pill")
+        .forEach((b) => b.classList.toggle("active", b === btn));
+      refreshDailyUI();
+    });
+
+    document.getElementById("daily-search").addEventListener("input", (e) => {
+      state.dailyQuery = e.target.value;
+      refreshDailyUI();
+    });
+
+    refreshDailyUI();
+  }
+
   /* ---------- Views ---------- */
   function renderHome() {
     const { profile, news } = DATA;
     const totalPapers = COLLECTION.meta.total || COLLECTION.papers.length;
-    const featuredPapers = COLLECTION.papers.filter((p) => p.priOrder > 0).slice(0, 4);
+    const latestDay = (DAILY.days || [])[0];
+    const latestDailyTop = latestDay ? (latestDay.papers || []).slice(0, 3) : [];
+    const featuredPapers = COLLECTION.papers.filter((p) => p.priOrder > 0).slice(0, 3);
     const recentPosts = POSTS.slice(0, 2);
 
     appEl.innerHTML = `
@@ -445,8 +980,9 @@
             <p class="hero-role">${escapeHtml(profile.role)} · ${escapeHtml(profile.affiliation)}</p>
             <p class="hero-tagline">${escapeHtml(profile.tagline)}</p>
             <div class="hero-actions">
-              <a href="#cv" class="btn btn-primary">查看个人简历</a>
+              <a href="#daily" class="btn btn-primary">✦ 每日论文雷达 (${DAILY.meta.totalPapers || 0})</a>
               <a href="#papers" class="btn btn-secondary">论文收集 (${totalPapers})</a>
+              <a href="#cv" class="btn btn-secondary">个人简历</a>
               <a href="#blog" class="btn btn-secondary">阅读博客 (${POSTS.length})</a>
             </div>
             <div class="social-row">
@@ -500,6 +1036,25 @@
           </aside>
         </section>
 
+        ${
+          latestDailyTop.length
+            ? `
+        <section class="section-block">
+          <div class="section-header">
+            <div>
+              <div class="eyebrow">DAILY ARXIV RADAR · ${escapeHtml(latestDay.date)}</div>
+              <h2 class="section-title">每日论文雷达 · 最新高星精选</h2>
+            </div>
+            <a href="#daily" class="btn btn-ghost">进入每日按天追踪 →</a>
+          </div>
+          <div class="pub-list">
+            ${latestDailyTop.map((p) => renderDailyPaperCard(p, { prefix: "home", source: "daily" })).join("")}
+          </div>
+        </section>
+        `
+            : ""
+        }
+
         <section class="section-block">
           <div class="section-header">
             <div>
@@ -528,7 +1083,8 @@
       </div>
     `;
 
-    bindPaperCollectionActions();
+    bindPaperCollectionActions(renderHome);
+    bindDailyAndStarActions(renderHome);
     bindPostCardClicks();
   }
 
@@ -921,12 +1477,15 @@
           return matchYear && matchCat && matchQuery;
         });
 
+        // Float Starred papers to the top inside Paper Collection too
+        filtered.sort((a, b) => (isPaperStarred(b) ? 1 : 0) - (isPaperStarred(a) ? 1 : 0));
+
         const visible = filtered.slice(0, state.paperLimit);
         const barEl = document.getElementById("paper-results-bar");
         const listEl = document.getElementById("paper-list-container");
         const moreEl = document.getElementById("paper-load-more");
 
-        barEl.innerHTML = `<span>当前匹配 ${filtered.length} 篇 · 已展示 ${visible.length} 篇</span><span>按优先度与首投时间排序</span>`;
+        barEl.innerHTML = `<span>当前匹配 ${filtered.length} 篇 · 已展示 ${visible.length} 篇</span><span>已 Star 置顶优先 · 按优先度与首投时间排序</span>`;
 
         if (!filtered.length) {
           listEl.innerHTML = `<div class="empty-state">没有找到符合条件的论文，试试清空搜索词或切换方向标签。</div>`;
@@ -935,7 +1494,7 @@
         }
 
         listEl.innerHTML = visible.map(renderCollectionPaperCard).join("");
-        bindPaperCollectionActions();
+        bindPaperCollectionActions(updatePaperList);
 
         if (filtered.length > visible.length) {
           const remaining = filtered.length - visible.length;
@@ -1133,19 +1692,70 @@
   }
 
   /* ---------- Interactive Bindings ---------- */
-  function bindPaperCollectionActions() {
+  function bindDailyAndStarActions(onStarChange) {
+    document.querySelectorAll(".js-toggle-star").forEach((btn) => {
+      if (btn.dataset.boundStar) return;
+      btn.dataset.boundStar = "1";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.starKey;
+        const found = findPaperByStarKey(key);
+        if (!found) return;
+        togglePaperStar(found.paper, btn.dataset.source || found.source);
+        if (typeof onStarChange === "function") onStarChange();
+      });
+    });
+
+    document.querySelectorAll(".js-toggle-daily-abs").forEach((btn) => {
+      if (btn.dataset.boundAbs) return;
+      btn.dataset.boundAbs = "1";
+      btn.addEventListener("click", () => {
+        const el = document.getElementById(btn.dataset.target);
+        if (!el) return;
+        const isHidden = el.classList.toggle("hidden");
+        btn.textContent = isHidden ? "展开摘要" : "收起摘要";
+      });
+    });
+
+    document.querySelectorAll(".js-copy-daily-bib").forEach((btn) => {
+      if (btn.dataset.boundBib) return;
+      btn.dataset.boundBib = "1";
+      btn.addEventListener("click", () => {
+        const found = findPaperByStarKey(btn.dataset.starKey);
+        if (!found) return;
+        const p = found.paper;
+        const bib = buildBibtex({
+          id: p.id || p.baseId,
+          short: p.short || (p.title || "").split(/\s+/)[0],
+          title: p.title,
+          year: (p.date || "2026").slice(0, 4),
+          arxiv: p.arxiv,
+          url: p.url
+        });
+        copyText(bib, "已复制 BibTeX 引用到剪贴板");
+      });
+    });
+  }
+
+  function bindPaperCollectionActions(onStarChange) {
     document.querySelectorAll(".js-copy-arxiv").forEach((btn) => {
+      if (btn.dataset.boundArxiv) return;
+      btn.dataset.boundArxiv = "1";
       btn.addEventListener("click", () => {
         copyText(btn.dataset.arxiv, `已复制 arXiv ID: ${btn.dataset.arxiv}`);
       });
     });
 
     document.querySelectorAll(".js-copy-paper-bib").forEach((btn) => {
+      if (btn.dataset.boundColBib) return;
+      btn.dataset.boundColBib = "1";
       btn.addEventListener("click", () => {
         const paper = (COLLECTION.papers || []).find((p) => p.id === btn.dataset.id);
         if (paper) copyText(buildBibtex(paper), "已复制 BibTeX 引用到剪贴板");
       });
     });
+
+    bindDailyAndStarActions(onStarChange);
   }
 
   function bindPostCardClicks() {
@@ -1172,13 +1782,14 @@
   function route() {
     const rawHash = (window.location.hash || "#home").replace(/^#/, "");
     const [section, param] = rawHash.split("/");
-    const activeSection = ["home", "cv", "papers", "blog"].includes(section) ? section : "home";
+    const activeSection = ["home", "daily", "cv", "papers", "blog"].includes(section) ? section : "home";
 
     document.querySelectorAll(".nav-link").forEach((link) => {
       link.classList.toggle("active", link.dataset.route === activeSection);
     });
 
     if (activeSection === "home") renderHome();
+    else if (activeSection === "daily") renderDaily();
     else if (activeSection === "cv") renderCV();
     else if (activeSection === "papers") renderPapers();
     else if (activeSection === "blog" && param) renderBlogDetail(param);
